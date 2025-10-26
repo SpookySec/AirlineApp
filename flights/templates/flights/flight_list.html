@@ -1,0 +1,6 @@
+<h1>Flights</h1>
+<ul>
+{% for f in flights %}
+    <li>{{ f.flight_number }} — {{ f.origin }} → {{ f.destination }}</li>
+{% endfor %}
+</ul>
