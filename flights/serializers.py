@@ -25,10 +25,11 @@ class FlightSerializer(serializers.ModelSerializer):
     aircraft_id = serializers.PrimaryKeyRelatedField(
         queryset=Aircraft.objects.all(), source='aircraft', write_only=True, required=False
     )
+    flight_staff = serializers.SerializerMethodField()
 
     class Meta:
         model = Flight
-        fields = ['id', 'flight_number', 'origin', 'destination', 'departure_time', 'arrival_time', 'status', 'aircraft', 'aircraft_id']
+        fields = ['id', 'flight_number', 'origin', 'destination', 'departure_time', 'arrival_time', 'status', 'aircraft', 'aircraft_id', 'flight_staff']
 
     def validate(self, data):
         dep = data.get('departure_time') or getattr(self.instance, 'departure_time', None)
@@ -36,6 +37,10 @@ class FlightSerializer(serializers.ModelSerializer):
         if dep and arr and dep >= arr:
             raise serializers.ValidationError("departure_time must be before arrival_time")
         return data
+
+    def get_flight_staff(self, obj):
+        # return simplified staff info
+        return [{'id': fs.staff.id, 'first_name': fs.staff.first_name, 'last_name': fs.staff.last_name, 'assigned_role': fs.assigned_role} for fs in obj.flight_staff.all()]
 
 
 class FlightStaffSerializer(serializers.ModelSerializer):
@@ -50,9 +55,10 @@ class FlightStaffSerializer(serializers.ModelSerializer):
 class TicketSerializer(serializers.ModelSerializer):
     passenger = PassengerSerializer(read_only=True)
     passenger_id = serializers.PrimaryKeyRelatedField(queryset=Passenger.objects.all(), source='passenger', write_only=True)
+    flight = FlightSerializer(read_only=True)
     flight_id = serializers.PrimaryKeyRelatedField(queryset=Flight.objects.all(), source='flight', write_only=True)
 
     class Meta:
         model = FlightTicket
-        fields = ['id', 'ticket_number', 'flight', 'flight_id', 'passenger', 'passenger_id', 'seat_number', 'ticket_class', 'price', 'booking_date', 'status']
-        read_only_fields = ['booking_date']
+        fields = ['id', 'ticket_number', 'flight', 'flight_id', 'passenger', 'passenger_id', 'seat_number', 'ticket_class', 'price', 'booking_date', 'status', 'user']
+        read_only_fields = ['booking_date', 'price', 'user']

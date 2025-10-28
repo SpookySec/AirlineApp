@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 
 class Staff(models.Model):
@@ -98,6 +99,7 @@ class FlightTicket(models.Model):
     ticket_number = models.CharField(max_length=50, unique=True)
     flight = models.ForeignKey(Flight, on_delete=models.CASCADE, related_name='tickets')
     passenger = models.ForeignKey(Passenger, on_delete=models.CASCADE, related_name='tickets')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tickets', null=True, blank=True)
     seat_number = models.CharField(max_length=10)
     ticket_class = models.CharField(max_length=20, choices=CLASS_CHOICES)
     price = models.DecimalField(max_digits=10, decimal_places=2)

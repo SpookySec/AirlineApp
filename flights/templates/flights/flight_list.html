@@ -1,6 +1,123 @@
-<h1>Flights</h1>
-<ul>
-{% for f in flights %}
-    <li>{{ f.flight_number }} — {{ f.origin }} → {{ f.destination }}</li>
-{% endfor %}
-</ul>
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Flights</title>
+        <style>
+            body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; padding: 20px; }
+            .controls { margin-bottom: 12px; display:flex; gap:8px; align-items:center }
+            input[type="search"] { padding:6px 8px; font-size:14px; width:280px }
+            table { border-collapse: collapse; width:100%; margin-top:12px }
+            th, td { text-align:left; padding:8px; border-bottom:1px solid #eee }
+            th { background:#fafafa }
+            .muted { color:#666; font-size:13px }
+            .pager { margin-top:12px; display:flex; gap:8px }
+            button { padding:6px 10px; cursor:pointer }
+            .empty { margin-top:20px; color:#444 }
+        </style>
+    </head>
+    <body>
+        <h1>Flights</h1>
+
+        <div class="controls">
+            <input id="search" type="search" placeholder="Search flight number, origin, destination...">
+            <label class="muted">Status:</label>
+            <select id="statusFilter">
+                <option value="">Any</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="Boarding">Boarding</option>
+                <option value="Departed">Departed</option>
+                <option value="Cancelled">Cancelled</option>
+                <option value="Landed">Landed</option>
+            </select>
+            <button id="refresh">Refresh</button>
+        </div>
+
+        <div id="results">
+            <p class="muted">Loading flights…</p>
+        </div>
+
+        <script>
+            const resultsEl = document.getElementById('results');
+            const searchEl = document.getElementById('search');
+            const statusEl = document.getElementById('statusFilter');
+            const refreshBtn = document.getElementById('refresh');
+
+            let nextUrl = null;
+            let prevUrl = null;
+
+            function isoToLocal(s) {
+                if (!s) return '';
+                const d = new Date(s);
+                return d.toLocaleString();
+            }
+
+            async function fetchUrl(url) {
+                const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                if (!resp.ok) throw new Error('Network response was not ok');
+                return resp.json();
+            }
+
+            function renderTable(items) {
+                if (!items.length) {
+                    resultsEl.innerHTML = '<p class="empty">No flights found.</p>';
+                    return;
+                }
+                const rows = items.map(f => `
+                    <tr>
+                        <td><strong>${f.flight_number}</strong></td>
+                        <td>${f.origin} → ${f.destination}</td>
+                        <td>${isoToLocal(f.departure_time)} — ${isoToLocal(f.arrival_time)}</td>
+                        <td>${f.status}</td>
+                        <td>${f.aircraft ? f.aircraft.registration_code + ' ('+f.aircraft.model+')' : ''}</td>
+                    </tr>
+                `).join('');
+
+                resultsEl.innerHTML = `
+                    <table>
+                        <thead><tr><th>Flight</th><th>Route</th><th>When</th><th>Status</th><th>Aircraft</th></tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                    <div class="pager" id="pager"></div>
+                `;
+
+                const pager = document.getElementById('pager');
+                pager.innerHTML = '';
+                if (prevUrl) {
+                    const b = document.createElement('button'); b.textContent = 'Previous'; b.onclick = () => load(prevUrl); pager.appendChild(b);
+                }
+                if (nextUrl) {
+                    const b = document.createElement('button'); b.textContent = 'Next'; b.onclick = () => load(nextUrl); pager.appendChild(b);
+                }
+            }
+
+            async function load(url=null) {
+                try {
+                    resultsEl.innerHTML = '<p class="muted">Loading flights…</p>';
+                    let apiUrl = url || '/api/flights/?page_size=10';
+                    const q = searchEl.value.trim();
+                    const status = statusEl.value;
+                    if (!url && q) apiUrl += '&search=' + encodeURIComponent(q);
+                    if (!url && status) apiUrl += '&status=' + encodeURIComponent(status);
+
+                    const data = await fetchUrl(apiUrl);
+                    // DRF paginated responses have results, next, previous
+                    const items = data.results || data;
+                    nextUrl = data.next;
+                    prevUrl = data.previous;
+                    renderTable(items);
+                } catch (err) {
+                    resultsEl.innerHTML = `<p class="empty">Error loading flights: ${err.message}</p>`;
+                }
+            }
+
+            refreshBtn.addEventListener('click', () => load());
+            searchEl.addEventListener('keyup', (e) => { if (e.key === 'Enter') load(); });
+            statusEl.addEventListener('change', () => load());
+
+            // initial load
+            load();
+        </script>
+    </body>
+</html>
