@@ -1,0 +1,16 @@
+asgiref==3.10.0
+Django==5.2.7
+django-cors-headers==4.0.0
+django-filter==25.2
+djangorestframework==3.16.1
+djangorestframework_simplejwt==5.5.1
+nodeenv==1.9.1
+numpy==2.3.4
+psutil==7.1.0
+pycairo==1.28.0
+pydbus==0.6.0
+PyGObject==3.54.3
+PyJWT==2.10.1
+pyright==1.1.406
+sqlparse==0.5.3
+typing_extensions==4.15.0
