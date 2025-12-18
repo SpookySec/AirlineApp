@@ -1,0 +1,63 @@
+.register-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  min-height: calc(100vh - 64px);
+  background: linear-gradient(180deg,#f6fbff 0%, #ffffff 100%);
+}
+
+.register-card {
+  width: 100%;
+  max-width: 720px;
+  background: white;
+  border-radius: 12px;
+  padding: 28px 28px;
+  box-shadow: 0 10px 30px rgba(6, 24, 44, 0.08);
+}
+
+.register-card h2 {
+  margin: 0 0 6px;
+}
+
+.muted { color: #6b7280; }
+
+.row { display: flex; gap: 14px; }
+
+.field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; flex: 1; }
+
+.field input[type="text"], .field input[type="email"], .field input[type="password"]{
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e6eef6;
+  background: #fff;
+}
+
+.checkbox { display:flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.checkbox input { width: 18px; height: 18px; }
+
+.error { color: #b91c1c; font-size: 0.85rem; }
+.server-error { background:#fff4f4; border:1px solid #f8d7da; color:#7a1a1a; padding:8px 10px; border-radius:8px; margin-bottom:10px }
+
+.actions { display:flex; gap: 12px; margin-top: 8px; }
+.btn { padding: 8px 14px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; font-weight:600 }
+.btn.primary { background: #0b74de; color: white }
+.btn.ghost { background: transparent; color: #0b74de; border-color: #cfe8ff }
+.btn[disabled] { opacity: 0.6; cursor: not-allowed }
+
+.helper { margin-top: 14px; color: #666 }
+.helper a { color: #0b74de }
+
+/* Password strength */
+.pw-meta { display:flex; align-items:center; gap:10px }
+.strength { width: 80px; height: 8px; border-radius: 6px; background: #efefef; box-shadow: inset 0 -1px 0 rgba(0,0,0,0.04) }
+.strength-0{ background: linear-gradient(90deg,#fefefe,#fefefe) }
+.strength-1{ background: linear-gradient(90deg,#ffb3b3, #ffd1b3) }
+.strength-2{ background: linear-gradient(90deg,#ffd37a,#ffeaa6) }
+.strength-3{ background: linear-gradient(90deg,#b8e986,#d9f7b4) }
+.strength-4{ background: linear-gradient(90deg,#64d2ff,#2f93ff) }
+
+@media (max-width:760px){
+  .row{flex-direction:column}
+  .register-card{padding:20px}
+}

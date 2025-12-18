@@ -1,0 +1,54 @@
+.book-page { padding: 20px; }
+.book-grid { display: grid; grid-template-columns: 340px 1fr; gap: 18px; align-items: start; }
+
+.flights-list .list-head { display:flex; flex-direction:column; gap:8px }
+.flights-list .search-row input { width:100%; padding:8px 10px; border-radius:8px; border:1px solid #e6eef6 }
+
+.list { list-style:none; padding:0; margin:0; margin-top:12px; display:flex; flex-direction:column; gap:8px }
+.list-item { padding:12px; border-radius:10px; cursor:pointer; border:1px solid transparent }
+.list-item:hover { box-shadow: 0 6px 20px rgba(9,30,66,0.04) }
+.list-item.active { border-color:#cfe8ff; background: linear-gradient(180deg,#fcfeff,#f5fbff) }
+.list-item .title { font-weight:700 }
+.list-item .route { margin-top:6px }
+.list-item .times { font-size:0.9rem }
+
+.book-panel .empty { text-align:center; padding:40px; color:#666 }
+
+.flight-header { display:flex; justify-content:space-between; align-items:center; gap:12px }
+.price-box { text-align:right }
+.price-box .label { font-size:0.9rem }
+.price-box .price { font-size:1.6rem; font-weight:700; color:#0b74de }
+
+.book-form { margin-top:18px }
+.form-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:12px }
+.field { display:flex; flex-direction:column; gap:8px }
+.field input, .field select { padding:10px 12px; border-radius:8px; border:1px solid #e6eef6 }
+.btn.small{ padding:6px 10px; border-radius:8px }
+.server-error { background:#fff4f4; border:1px solid #f8d7da; color:#7a1a1a; padding:8px 10px; border-radius:8px; margin-top:8px }
+.actions { display:flex; gap:12px; margin-top:14px }
+.btn { padding:8px 12px; border-radius:8px; border:1px solid transparent; font-weight:600; cursor:pointer }
+.btn.primary { background:#0b74de; color:white }
+.btn.secondary { background:transparent; border-color:#cfe8ff; color:#0b74de }
+
+/* Simple seat grid (first UI) */
+.seat-meta { margin-top:10px }
+.aircraft-info { font-size:0.9rem; margin-bottom:8px }
+.seat-grid { display:flex; flex-wrap:wrap; gap:6px; max-width:520px; padding:8px; background:#fbfdff; border-radius:8px; border:1px solid #eef6ff }
+.seat { width:48px; height:36px; border-radius:6px; border:1px solid transparent; background:#fff; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-weight:600 }
+.seat.first { background: linear-gradient(90deg,#fff7f0,#fff1e6) }
+.seat.business { background: linear-gradient(90deg,#f6fbff,#eef8ff) }
+.seat.economy { background: #fff }
+.seat.taken { background:#f8f8f8; color:#999; cursor:not-allowed; border-color:#eee }
+.seat.selected { outline:3px solid rgba(11,116,222,0.18) }
+.seat.selectable:hover { transform: translateY(-2px); box-shadow:0 6px 18px rgba(9,30,66,0.04) }
+.seat-legend { display:flex; gap:12px; margin-top:8px; align-items:center }
+.legend-item { display:flex; gap:6px; align-items:center; font-size:0.9rem; color:#444 }
+.legend-dot { width:12px; height:12px; border-radius:3px; display:inline-block }
+.legend-dot.first { background:linear-gradient(90deg,#fff7f0,#fff1e6); border:1px solid #f3d9b8 }
+.legend-dot.business { background:linear-gradient(90deg,#eef8ff,#dff4ff); border:1px solid #cfe8ff }
+.legend-dot.economy { background:#fff; border:1px solid #eee }
+.legend-dot.taken { background:#f2f2f2; border:1px solid #eee }
+
+/* Seat map styles removed to revert to simpler booking UI */
+
+@media (max-width: 860px){ .book-grid { grid-template-columns: 1fr; } .form-grid { grid-template-columns:1fr } }
