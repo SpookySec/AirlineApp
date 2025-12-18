@@ -39,6 +39,8 @@ export default function Auth(){
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('username')
     setUser(null)
+    // Notify rest of app
+    window.dispatchEvent(new Event('auth'))
   }
 
   if (user) return (
