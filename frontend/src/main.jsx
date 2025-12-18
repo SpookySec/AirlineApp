@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Link, NavLink } from 'react-router-dom'
 
-import FlightDetail from './pages/FlightDetail'
 import TicketsPage from './pages/TicketsPage'
 import './styles.css'
 
 import Auth from './ui/Auth'
-//import StaffPage from './pages/StaffPage'
 import Home from './pages/Home.jsx'
 import Register from './pages/Register.jsx'
 import Login from './pages/Login.jsx'
@@ -61,7 +59,6 @@ function App(){
       </nav>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/flights/:id" element={<FlightDetail />} />
         <Route path="/tickets" element={<TicketsPage />} />
         
         <Route path="/register" element={<Register />} />

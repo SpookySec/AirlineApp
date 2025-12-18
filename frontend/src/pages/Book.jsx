@@ -22,6 +22,7 @@ export default function Book(){
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(null)
+  const [step, setStep] = useState(1) // 1: passenger info, 2: seat selection
   const [form, setForm] = useState({ first_name:'', last_name:'', email:'', phone:'', passport_number:'', nationality:'', date_of_birth:'1990-01-01', seat_number:'', ticket_class:'Economy', promo_code:'' })
   const [promo, setPromo] = useState({ applied:false, discount:0 })
   const [submitting, setSubmitting] = useState(false)
@@ -114,6 +115,18 @@ export default function Book(){
     return null
   }
 
+  function proceedToSeatSelection(){
+    setError(null)
+    const v = validate()
+    if(v) return setError(v)
+    setStep(2)
+  }
+
+  function backToPassengerInfo(){
+    setStep(1)
+    setError(null)
+  }
+
   async function book(e){
     e.preventDefault()
     setError(null)
@@ -144,7 +157,7 @@ export default function Book(){
 
           <ul className="list">
             {filtered.map(f => (
-              <li key={f.id} className={`list-item ${selected && selected.id === f.id ? 'active' : ''}`} onClick={()=>{ setSelected(f); setForm({...form, ticket_class:'Economy'}) }}>
+              <li key={f.id} className={`list-item ${selected && selected.id === f.id ? 'active' : ''}`} onClick={()=>{ setSelected(f); setForm({...form, ticket_class:'Economy'}); setStep(1); setError(null) }}>
                 <div className="title">{f.flight_number} <span className="muted">— {f.status}</span></div>
                 <div className="route">{f.origin} → {f.destination}</div>
                 <div className="times muted">{new Date(f.departure_time).toLocaleString()} — {new Date(f.arrival_time).toLocaleString()}</div>
@@ -172,103 +185,123 @@ export default function Book(){
                 </div>
               </div>
 
-              <form className="book-form" onSubmit={book}>
-                <div className="form-grid">
-                  <label className="field">
-                    <span>First name</span>
-                    <input value={form.first_name} onChange={e=>update('first_name', e.target.value)} required />
-                  </label>
+              <form className="book-form" onSubmit={step === 1 ? (e) => { e.preventDefault(); proceedToSeatSelection() } : book}>
+                {step === 1 ? (
+                  // Step 1: Passenger Information
+                  <div className="form-grid">
+                    <h3>Passenger Information</h3>
+                    <label className="field">
+                      <span>First name</span>
+                      <input value={form.first_name} onChange={e=>update('first_name', e.target.value)} required />
+                    </label>
 
-                  <label className="field">
-                    <span>Last name</span>
-                    <input value={form.last_name} onChange={e=>update('last_name', e.target.value)} required />
-                  </label>
+                    <label className="field">
+                      <span>Last name</span>
+                      <input value={form.last_name} onChange={e=>update('last_name', e.target.value)} required />
+                    </label>
 
-                  <label className="field">
-                    <span>Email</span>
-                    <input type="email" value={form.email} onChange={e=>update('email', e.target.value)} required />
-                  </label>
+                    <label className="field">
+                      <span>Email</span>
+                      <input type="email" value={form.email} onChange={e=>update('email', e.target.value)} required />
+                    </label>
 
-                  <label className="field">
-                    <span>Phone</span>
-                    <input value={form.phone} onChange={e=>update('phone', e.target.value)} />
-                  </label>
+                    <label className="field">
+                      <span>Phone</span>
+                      <input value={form.phone} onChange={e=>update('phone', e.target.value)} />
+                    </label>
 
-                  <label className="field">
-                    <span>Passport number</span>
-                    <input value={form.passport_number} onChange={e=>update('passport_number', e.target.value)} required />
-                  </label>
+                    <label className="field">
+                      <span>Passport number</span>
+                      <input value={form.passport_number} onChange={e=>update('passport_number', e.target.value)} required />
+                    </label>
 
-                  <label className="field">
-                    <span>Nationality</span>
-                    <input value={form.nationality} onChange={e=>update('nationality', e.target.value)} />
-                  </label>
+                    <label className="field">
+                      <span>Nationality</span>
+                      <input value={form.nationality} onChange={e=>update('nationality', e.target.value)} />
+                    </label>
 
-                  <label className="field">
-                    <span>Date of birth</span>
-                    <input type="date" value={form.date_of_birth} onChange={e=>update('date_of_birth', e.target.value)} />
-                  </label>
+                    <label className="field">
+                      <span>Date of birth</span>
+                      <input type="date" value={form.date_of_birth} onChange={e=>update('date_of_birth', e.target.value)} />
+                    </label>
 
-                  <label className="field">
-                    <span>Seat (optional)</span>
-                    <input value={form.seat_number} onChange={e=>update('seat_number', e.target.value)} placeholder="e.g., 12A" />
-                    {selected && selected.aircraft && (
-                      <div className="seat-meta">
-                        <div className="aircraft-info">Aircraft: <strong>{selected.aircraft.model}</strong> ({selected.aircraft.registration_code}) • Capacity: {selected.aircraft.capacity}</div>
-                        <div className="seat-grid">
-                          {seatLayout.map(s => {
-                            const taken = takenSeats.has(s.label)
-                            const selectable = !taken && s.class === form.ticket_class
-                            const selectedThis = form.seat_number === s.label
-                            return (
-                              <button
-                                key={s.label}
-                                type="button"
-                                aria-pressed={selectedThis}
-                                aria-disabled={taken}
-                                className={`seat ${s.class.toLowerCase()} ${taken ? 'taken' : ''} ${selectedThis ? 'selected' : ''} ${selectable ? 'selectable' : ''}`}
-                                onClick={()=>{ if(taken) return; if(s.class !== form.ticket_class) return; update('seat_number', s.label) }}
-                                title={`${s.label} — ${s.class}${taken ? ' (taken)' : ''}`}
-                              >{s.label}</button>
-                            )
-                          })}
-                        </div>
-                        <div className="seat-legend">
-                          <span className="legend-item"><span className="legend-dot first"></span> First</span>
-                          <span className="legend-item"><span className="legend-dot business"></span> Business</span>
-                          <span className="legend-item"><span className="legend-dot economy"></span> Economy</span>
-                          <span className="legend-item"><span className="legend-dot taken"></span> Taken</span>
-                        </div>
-                      </div>
-                    )}
-                  </label>
+                    {error && <div className="server-error">{error}</div>}
 
-                  <label className="field">
-                    <span>Ticket class</span>
-                    <select value={form.ticket_class} onChange={e=>update('ticket_class', e.target.value)}>
-                      <option>Economy</option>
-                      <option>Business</option>
-                      <option>First</option>
-                    </select>
-                  </label>
-
-                  <label className="field">
-                    <span>Promo code</span>
-                    <div style={{display:'flex',gap:8}}>
-                      <input value={form.promo_code} onChange={e=>update('promo_code', e.target.value)} placeholder="SAVE10 or SAVE25" />
-                      <button type="button" className="btn small" onClick={applyPromo}>Apply</button>
+                    <div className="actions">
+                      <button className="btn primary" type="submit">Next: Select Seat</button>
+                      <button type="button" className="btn secondary" onClick={()=>{ setSelected(null); setError(null) }}>Cancel</button>
                     </div>
-                    {promo.applied && <small className="muted">Promo applied — {(promo.discount*100).toFixed(0)}% off</small>}
-                  </label>
+                  </div>
+                ) : (
+                  // Step 2: Seat Selection
+                  <div className="form-grid">
+                    <h3>Select Your Seat</h3>
 
-                </div>
+                    <div style={{background:'#f8fafc',padding:12,borderRadius:8,marginBottom:16,gridColumn:'1 / -1'}}>
+                      <div style={{fontWeight:600,marginBottom:4}}>Passenger</div>
+                      <div className="muted">{form.first_name} {form.last_name} ({form.email})</div>
+                    </div>
 
-                {error && <div className="server-error">{error}</div>}
+                    <label className="field" style={{gridColumn:'1 / -1'}}>
+                      <span>Seat (optional)</span>
+                      <input value={form.seat_number} onChange={e=>update('seat_number', e.target.value)} placeholder="e.g., 12A" />
+                      {selected && selected.aircraft && (
+                        <div className="seat-meta">
+                          <div className="aircraft-info">Aircraft: <strong>{selected.aircraft.model}</strong> ({selected.aircraft.registration_code}) • Capacity: {selected.aircraft.capacity}</div>
+                          <div className="seat-grid">
+                            {seatLayout.map(s => {
+                              const taken = takenSeats.has(s.label)
+                              const selectable = !taken && s.class === form.ticket_class
+                              const selectedThis = form.seat_number === s.label
+                              return (
+                                <button
+                                  key={s.label}
+                                  type="button"
+                                  aria-pressed={selectedThis}
+                                  aria-disabled={taken}
+                                  className={`seat ${s.class.toLowerCase()} ${taken ? 'taken' : ''} ${selectedThis ? 'selected' : ''} ${selectable ? 'selectable' : ''}`}
+                                  onClick={()=>{ if(taken) return; if(s.class !== form.ticket_class) return; update('seat_number', s.label) }}
+                                  title={`${s.label} — ${s.class}${taken ? ' (taken)' : ''}`}
+                                >{s.label}</button>
+                              )
+                            })}
+                          </div>
+                          <div className="seat-legend">
+                            <span className="legend-item"><span className="legend-dot first"></span> First</span>
+                            <span className="legend-item"><span className="legend-dot business"></span> Business</span>
+                            <span className="legend-item"><span className="legend-dot economy"></span> Economy</span>
+                            <span className="legend-item"><span className="legend-dot taken"></span> Taken</span>
+                          </div>
+                        </div>
+                      )}
+                    </label>
 
-                <div className="actions">
-                  <button className="btn primary" type="submit" disabled={submitting}>{submitting ? 'Booking…' : `Book for ${currencyFormat(estimated)}`}</button>
-                  <button type="button" className="btn secondary" onClick={()=>{ setSelected(null); setError(null) }} disabled={submitting}>Cancel</button>
-                </div>
+                    <label className="field">
+                      <span>Ticket class</span>
+                      <select value={form.ticket_class} onChange={e=>update('ticket_class', e.target.value)}>
+                        <option>Economy</option>
+                        <option>Business</option>
+                        <option>First</option>
+                      </select>
+                    </label>
+
+                    <label className="field">
+                      <span>Promo code</span>
+                      <div style={{display:'flex',gap:8}}>
+                        <input value={form.promo_code} onChange={e=>update('promo_code', e.target.value)} placeholder="SAVE10 or SAVE25" />
+                        <button type="button" className="btn small" onClick={applyPromo}>Apply</button>
+                      </div>
+                      {promo.applied && <small className="muted">Promo applied — {(promo.discount*100).toFixed(0)}% off</small>}
+                    </label>
+
+                    {error && <div className="server-error">{error}</div>}
+
+                    <div className="actions">
+                      <button className="btn primary" type="submit" disabled={submitting}>{submitting ? 'Booking…' : `Confirm Booking for ${currencyFormat(estimated)}`}</button>
+                      <button type="button" className="btn secondary" onClick={backToPassengerInfo} disabled={submitting}>Back</button>
+                    </div>
+                  </div>
+                )}
               </form>
             </>
           )}
