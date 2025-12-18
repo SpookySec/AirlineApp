@@ -111,7 +111,9 @@ export default function Book(){
     if(!form.first_name.trim()) return 'First name required'
     if(!form.last_name.trim()) return 'Last name required'
     if(!form.email.trim()) return 'Email required'
+    if(!form.phone.trim()) return 'Phone number required'
     if(!form.passport_number.trim()) return 'Passport number required'
+    if(!form.nationality.trim()) return 'Nationality required'
     return null
   }
 
@@ -207,7 +209,7 @@ export default function Book(){
 
                     <label className="field">
                       <span>Phone</span>
-                      <input value={form.phone} onChange={e=>update('phone', e.target.value)} />
+                      <input value={form.phone} onChange={e=>update('phone', e.target.value)} required />
                     </label>
 
                     <label className="field">
@@ -217,7 +219,7 @@ export default function Book(){
 
                     <label className="field">
                       <span>Nationality</span>
-                      <input value={form.nationality} onChange={e=>update('nationality', e.target.value)} />
+                      <input value={form.nationality} onChange={e=>update('nationality', e.target.value)} required />
                     </label>
 
                     <label className="field">
@@ -237,9 +239,9 @@ export default function Book(){
                   <div className="form-grid">
                     <h3>Select Your Seat</h3>
 
-                    <div style={{background:'#f8fafc',padding:12,borderRadius:8,marginBottom:16,gridColumn:'1 / -1'}}>
-                      <div style={{fontWeight:600,marginBottom:4}}>Passenger</div>
-                      <div className="muted">{form.first_name} {form.last_name} ({form.email})</div>
+                    <div style={{background:'var(--card)',padding:12,borderRadius:8,marginBottom:16,gridColumn:'1 / -1',border:'1px solid var(--input-border)',color:'var(--text-light)'}}>
+                      <div style={{fontWeight:600,marginBottom:4,color:'var(--accent)'}}>Passenger</div>
+                      <div style={{color:'var(--text-light)'}}>{form.first_name} {form.last_name} ({form.email})</div>
                     </div>
 
                     <label className="field" style={{gridColumn:'1 / -1'}}>

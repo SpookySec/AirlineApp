@@ -1,0 +1,35 @@
+/* Luxury Black & Gold Color Scheme - Centralized */
+:root {
+  /* Primary Colors */
+  --bg: #02090f;
+  --card: #1d1d1d;
+  --card-contrast: #161616;
+  
+  /* Accent Colors */
+  --accent: #DAAB2D;
+  --accent-600: #A57A03;
+  --positive: #B8860B;
+  
+  /* Text Colors */
+  --text-primary: #F5F5F5;
+  --text-light: #E8E8E8;
+  --muted: #999999;
+  
+  /* Form & Input Colors */
+  --input-bg: #141414;
+  --input-border: #400128;
+  
+  /* Error/Alert Colors */
+  --danger: #8B0000;
+  --danger-bg: #330000;
+  --error-text: #FFB6B6;
+  
+  /* Specialty Colors for Seats */
+  --seat-first-from: #400128;
+  --seat-first-to: #600040;
+  --seat-business-from: #1a3a1a;
+  --seat-business-to: #264226;
+  --seat-economy: #262626;
+  --seat-taken: #1a1a1a;
+  --seat-taken-text: #666;
+}
