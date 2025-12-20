@@ -5,7 +5,7 @@ import './Login.css'
 
 export default function Login(){
   const navigate = useNavigate()
-  const [form, setForm] = useState({ username:'', password:'', remember:false })
+  const [form, setForm] = useState({ username:'', password:'', remember:true })
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 

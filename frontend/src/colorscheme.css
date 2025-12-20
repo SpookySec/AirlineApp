@@ -1,35 +1,32 @@
-/* Luxury Black & Gold Color Scheme - Centralized */
+/* Midnight Indigo + Gold color system */
 :root {
-  /* Primary Colors */
-  --bg: #02090f;
-  --card: #1d1d1d;
-  --card-contrast: #161616;
-  
-  /* Accent Colors */
-  --accent: #DAAB2D;
-  --accent-600: #A57A03;
-  --positive: #B8860B;
-  
-  /* Text Colors */
-  --text-primary: #F5F5F5;
-  --text-light: #E8E8E8;
-  --muted: #999999;
-  
-  /* Form & Input Colors */
-  --input-bg: #141414;
-  --input-border: #400128;
-  
-  /* Error/Alert Colors */
-  --danger: #8B0000;
-  --danger-bg: #330000;
-  --error-text: #FFB6B6;
-  
-  /* Specialty Colors for Seats */
-  --seat-first-from: #400128;
-  --seat-first-to: #600040;
-  --seat-business-from: #1a3a1a;
-  --seat-business-to: #264226;
-  --seat-economy: #262626;
-  --seat-taken: #1a1a1a;
-  --seat-taken-text: #666;
+  --bg: #05080f;
+  --bg-2: #0b1020;
+  --card: #0f172a;
+  --card-contrast: #0b1324;
+
+  --accent: #e7c262;
+  --accent-600: #caa240;
+  --accent-700: #b18a32;
+  --positive: #5bd6b2;
+
+  --text-primary: #f8fafc;
+  --text-light: #dbe4f0;
+  --muted: #9aa5b5;
+
+  --input-bg: #0c1322;
+  --input-border: #1f2a44;
+  --input-focus: #2f3f64;
+
+  --danger: #f97070;
+  --danger-bg: #2a1212;
+  --error-text: #ffc9c9;
+
+  --seat-first-from: #35133c;
+  --seat-first-to: #4a1f50;
+  --seat-business-from: #12362c;
+  --seat-business-to: #1c463b;
+  --seat-economy: #1b2435;
+  --seat-taken: #111827;
+  --seat-taken-text: #5b6475;
 }

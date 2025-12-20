@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@seatmaps.com/react-lib": "github:Kwiket/jets-seatmap-react-lib-pub#version-3",
     "axios": "^1.4.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

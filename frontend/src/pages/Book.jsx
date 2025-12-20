@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import api from '../api'
 import './Book.css'
 
@@ -16,8 +16,35 @@ function currencyFormat(v){
   return `$${Number(v).toFixed(2)}`
 }
 
+// Simple Error Boundary component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error, errorInfo) {
+    if (this.props.onError) {
+      this.props.onError(error)
+    }
+    console.error('ErrorBoundary caught an error:', error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || <div style={{padding: '20px', color: 'red'}}>Error loading seat map</div>
+    }
+    return this.props.children
+  }
+}
+
 export default function Book(){
   const nav = useNavigate()
+  const [searchParams] = useSearchParams()
   const [flights, setFlights] = useState([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
@@ -28,24 +55,8 @@ export default function Book(){
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [takenSeats, setTakenSeats] = useState(new Set())
-  
 
-  useEffect(()=>{
-    setLoading(true)
-    api.get('flights/?page_size=50')
-      .then(r=>setFlights(r.data.results || r.data))
-      .catch(()=>{})
-      .finally(()=>setLoading(false))
-  }, [])
-
-  
-
-  const filtered = useMemo(()=>{
-    if(!query.trim()) return flights
-    const q = query.trim().toLowerCase()
-    return flights.filter(f=> (f.flight_number||'').toLowerCase().includes(q) || (f.origin||'').toLowerCase().includes(q) || (f.destination||'').toLowerCase().includes(q))
-  }, [flights, query])
-
+  // Calculate base price and estimated price - define early so they're available for all hooks
   const basePrice = useMemo(()=> selected ? deterministicBasePrice(selected) : 0, [selected])
   const estimated = useMemo(()=>{
     if(!selected) return 0
@@ -55,32 +66,107 @@ export default function Book(){
     return Number(afterPromo)
   }, [selected, form.ticket_class, basePrice, promo])
 
-  function update(field, value){ setForm(prev=> ({...prev, [field]: value})); setError(null) }
-
-  // simple seat grid generator (6 seats per row, letters A-F) and class bands
-  function buildSeats(){
-    if(!selected || !selected.aircraft) return []
-    const capacity = selected.aircraft.capacity || 120
-    const seatsPerRow = 6
-    const rows = Math.ceil(capacity / seatsPerRow)
-    const firstRows = Math.max(1, Math.round(rows * 0.08))
-    const businessRows = Math.max(1, Math.round(rows * 0.18))
-    const letters = ['A','B','C','D','E','F']
-    const seats = []
-    for(let r=1; r<=rows; r++){
-      let klass = 'Economy'
-      if(r <= firstRows) klass = 'First'
-      else if(r <= firstRows + businessRows) klass = 'Business'
-      for(let c=0; c<seatsPerRow; c++){
-        const idx = (r-1) * seatsPerRow + c
-        if(idx >= capacity) break
-        seats.push({ label:`${r}${letters[c]}`, row:r, col:c, class: klass })
+  // Build seat map from plane type seat layout
+  const seatMapData = useMemo(() => {
+    if (!selected || !selected.plane_type) return null
+    
+    const layout = selected.plane_type.seat_layout || {}
+    const allSeats = []
+    
+    // Build seat list from layout
+    if (layout.first) allSeats.push(...layout.first.map(s => ({ label: s, class: 'First' })))
+    if (layout.business) allSeats.push(...layout.business.map(s => ({ label: s, class: 'Business' })))
+    if (layout.economy) allSeats.push(...layout.economy.map(s => ({ label: s, class: 'Economy' })))
+    
+    // If no layout, create default seats
+    if (allSeats.length === 0) {
+      const capacity = selected.plane_type.total_seats || 120
+      const seatsPerRow = 6
+      const rows = Math.ceil(capacity / seatsPerRow)
+      const letters = ['A','B','C','D','E','F']
+      for(let r=1; r<=rows; r++){
+        for(let c=0; c<seatsPerRow; c++){
+          const idx = (r-1) * seatsPerRow + c
+          if(idx >= capacity) break
+          allSeats.push({ label: `${r}${letters[c]}`, class: 'Economy' })
+        }
       }
     }
-    return seats
-  }
 
-  const seatLayout = useMemo(() => buildSeats(), [selected])
+    // Parse seat labels to get row and column
+    const parseSeat = (label) => {
+      const match = label.match(/(\d+)([A-Z]+)/)
+      if (!match) return { row: 0, col: 0, letter: '' }
+      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+      return { 
+        row: parseInt(match[1], 10), 
+        col: letters.indexOf(match[2]),
+        letter: match[2]
+      }
+    }
+
+    // Group seats by row
+    const seatsByRow = new Map()
+    allSeats.forEach(seat => {
+      const parsed = parseSeat(seat.label)
+      if (!seatsByRow.has(parsed.row)) {
+        seatsByRow.set(parsed.row, [])
+      }
+      seatsByRow.get(parsed.row).push({
+        ...seat,
+        ...parsed,
+        taken: takenSeats.has(seat.label),
+        selectable: !takenSeats.has(seat.label) && seat.class === form.ticket_class
+      })
+    })
+
+    // Sort rows and seats within rows
+    const rows = Array.from(seatsByRow.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([row, seats]) => ({
+        row,
+        seats: seats.sort((a, b) => a.col - b.col)
+      }))
+
+    return { rows, allSeats }
+  }, [selected, takenSeats, form.ticket_class])
+
+  useEffect(()=>{
+    setLoading(true)
+    api.get('flights/?page_size=50')
+      .then(r=>{
+        const flightsData = r.data.results || r.data
+        setFlights(flightsData)
+        
+        // Auto-select flight from URL parameter
+        const flightId = searchParams.get('flight')
+        if (flightId) {
+          const flight = flightsData.find(f => f.id === parseInt(flightId))
+          if (flight) {
+            setSelected(flight)
+            setForm(prev => ({...prev, ticket_class: 'Economy'}))
+            setStep(1)
+            setError(null)
+          }
+        }
+      })
+      .catch(()=>{})
+      .finally(()=>setLoading(false))
+  }, [searchParams])
+
+  
+
+  const filtered = useMemo(()=>{
+    if(!query.trim()) return flights
+    const q = query.trim().toLowerCase()
+    return flights.filter(f=>
+      (f.flight_number||'').toLowerCase().includes(q) ||
+      (f.origin_airport?.code||'').toLowerCase().includes(q) ||
+      (f.destination_airport?.code||'').toLowerCase().includes(q)
+    )
+  }, [flights, query])
+
+  function update(field, value){ setForm(prev=> ({...prev, [field]: value})); setError(null) }
 
   // fetch taken seats for selected flight (best-effort; may require auth)
   useEffect(()=>{
@@ -161,7 +247,7 @@ export default function Book(){
             {filtered.map(f => (
               <li key={f.id} className={`list-item ${selected && selected.id === f.id ? 'active' : ''}`} onClick={()=>{ setSelected(f); setForm({...form, ticket_class:'Economy'}); setStep(1); setError(null) }}>
                 <div className="title">{f.flight_number} <span className="muted">— {f.status}</span></div>
-                <div className="route">{f.origin} → {f.destination}</div>
+                <div className="route">{f.origin_airport?.code} → {f.destination_airport?.code}</div>
                 <div className="times muted">{new Date(f.departure_time).toLocaleString()} — {new Date(f.arrival_time).toLocaleString()}</div>
               </li>
             ))}
@@ -178,7 +264,7 @@ export default function Book(){
               <div className="flight-header">
                 <div>
                   <h2>{selected.flight_number} <span className="muted">— {selected.status}</span></h2>
-                  <div className="route-large">{selected.origin} → {selected.destination}</div>
+                  <div className="route-large">{selected.origin_airport?.code} → {selected.destination_airport?.code}</div>
                   <div className="muted">{new Date(selected.departure_time).toLocaleString()} — {new Date(selected.arrival_time).toLocaleString()}</div>
                 </div>
                 <div className="price-box">
@@ -245,35 +331,243 @@ export default function Book(){
                     </div>
 
                     <label className="field" style={{gridColumn:'1 / -1'}}>
-                      <span>Seat (optional)</span>
-                      <input value={form.seat_number} onChange={e=>update('seat_number', e.target.value)} placeholder="e.g., 12A" />
-                      {selected && selected.aircraft && (
-                        <div className="seat-meta">
-                          <div className="aircraft-info">Aircraft: <strong>{selected.aircraft.model}</strong> ({selected.aircraft.registration_code}) • Capacity: {selected.aircraft.capacity}</div>
-                          <div className="seat-grid">
-                            {seatLayout.map(s => {
-                              const taken = takenSeats.has(s.label)
-                              const selectable = !taken && s.class === form.ticket_class
-                              const selectedThis = form.seat_number === s.label
+                      <span>Seat Selection</span>
+                      {selected && selected.plane_type && seatMapData ? (
+                        <div className="seat-meta" style={{marginTop: '16px', width: '100%'}}>
+                          <div className="aircraft-info" style={{marginBottom: '12px'}}>
+                            Aircraft: <strong>{selected.plane_type.name}</strong> ({selected.plane_type.code}) • Seats: {selected.plane_type.total_seats}
+                          </div>
+                          <div className="seat-legend" style={{marginBottom: '12px', display: 'flex', gap: '16px', flexWrap: 'wrap'}}>
+                            <span className="legend-item"><span className="legend-dot first"></span> First Class</span>
+                            <span className="legend-item"><span className="legend-dot business"></span> Business Class</span>
+                            <span className="legend-item"><span className="legend-dot economy"></span> Economy Class</span>
+                            <span className="legend-item"><span className="legend-dot taken"></span> Taken</span>
+                            <span className="legend-item"><span className="legend-dot selected"></span> Selected</span>
+                          </div>
+                          <div className="custom-seat-map" style={{
+                            width: '100%',
+                            maxHeight: '600px',
+                            overflowY: 'auto',
+                            padding: '20px',
+                            background: 'var(--input-bg)',
+                            borderRadius: '8px',
+                            border: '1px solid var(--input-border)',
+                            position: 'relative'
+                          }}>
+                            {/* Airplane Nose - Curved design */}
+                            <div className="airplane-nose" style={{
+                              position: 'absolute',
+                              top: '0',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              width: '100%',
+                              maxWidth: '600px',
+                              height: '100px',
+                              pointerEvents: 'none',
+                              zIndex: 1
+                            }}>
+                              <svg width="100%" height="100" viewBox="0 0 600 100" preserveAspectRatio="xMidYMin meet" style={{ overflow: 'visible' }}>
+                                <defs>
+                                  <linearGradient id={`noseGradient-${selected?.id || 'default'}`} x1="300" y1="0" x2="300" y2="100" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0%" style={{ stopColor: '#88857c', stopOpacity: 0.9 }} />
+                                    <stop offset="50%" style={{ stopColor: '#88857c', stopOpacity: 0.6 }} />
+                                    <stop offset="100%" style={{ stopColor: '#88857c', stopOpacity: 0.2 }} />
+                                  </linearGradient>
+                                  <linearGradient id={`noseGradient2-${selected?.id || 'default'}`} x1="0" y1="0" x2="600" y2="0" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0%" style={{ stopColor: '#88857c', stopOpacity: 0.1 }} />
+                                    <stop offset="50%" style={{ stopColor: '#88857c', stopOpacity: 0.8 }} />
+                                    <stop offset="100%" style={{ stopColor: '#88857c', stopOpacity: 0.1 }} />
+                                  </linearGradient>
+                                </defs>
+                                {/* Left curve - more pronounced */}
+                                <path
+                                  d="M 300 0 Q 150 30, 60 70 Q 30 85, 0 100"
+                                  fill="none"
+                                  stroke={`url(#noseGradient-${selected?.id || 'default'})`}
+                                  strokeWidth="4"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                                {/* Right curve - more pronounced */}
+                                <path
+                                  d="M 300 0 Q 450 30, 540 70 Q 570 85, 600 100"
+                                  fill="none"
+                                  stroke={`url(#noseGradient-${selected?.id || 'default'})`}
+                                  strokeWidth="4"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                                {/* Fill area for nose shape */}
+                                <path
+                                  d="M 300 0 Q 150 30, 60 70 Q 30 85, 0 100 L 600 100 Q 570 85, 540 70 Q 450 30, 300 0 Z"
+                                  fill={`url(#noseGradient2-${selected?.id || 'default'})`}
+                                  opacity="0.3"
+                                />
+                              </svg>
+                            </div>
+                            
+                            <div style={{ marginTop: '100px' }}>
+                            {seatMapData.rows.map(({ row, seats }) => {
+                              // Split seats into left and right banks
+                              // Find the natural aisle gap in seat columns
+                              const sortedCols = seats.map(s => s.col).sort((a, b) => a - b)
+                              // Find largest gap between consecutive columns (where aisle would be)
+                              let maxGap = 0
+                              let gapIndex = Math.floor(sortedCols.length / 2)
+                              for (let i = 0; i < sortedCols.length - 1; i++) {
+                                const gap = sortedCols[i + 1] - sortedCols[i]
+                                if (gap > maxGap && gap > 1) {
+                                  maxGap = gap
+                                  gapIndex = i + 1
+                                }
+                              }
+                              // Split at the largest gap, or middle if no clear gap
+                              const splitCol = maxGap > 1 ? sortedCols[gapIndex] : sortedCols[Math.floor(sortedCols.length / 2)]
+                              const leftSeats = seats.filter(s => s.col < splitCol)
+                              const rightSeats = seats.filter(s => s.col >= splitCol)
+                              
                               return (
-                                <button
-                                  key={s.label}
-                                  type="button"
-                                  aria-pressed={selectedThis}
-                                  aria-disabled={taken}
-                                  className={`seat ${s.class.toLowerCase()} ${taken ? 'taken' : ''} ${selectedThis ? 'selected' : ''} ${selectable ? 'selectable' : ''}`}
-                                  onClick={()=>{ if(taken) return; if(s.class !== form.ticket_class) return; update('seat_number', s.label) }}
-                                  title={`${s.label} — ${s.class}${taken ? ' (taken)' : ''}`}
-                                >{s.label}</button>
+                                <div key={row} className="seat-row-container" style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '12px',
+                                  marginBottom: '8px',
+                                  minHeight: '40px',
+                                  width: '100%',
+                                  position: 'relative',
+                                  justifyContent: 'center'
+                                }}>
+                                  <div className="row-number" style={{
+                                    minWidth: '30px',
+                                    textAlign: 'right',
+                                    fontWeight: '600',
+                                    color: 'var(--text-light)',
+                                    fontSize: '0.9rem',
+                                    flexShrink: 0
+                                  }}>{row}</div>
+                                  
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    justifyContent: 'center'
+                                  }}>
+                                    <div className="seat-bank-left" style={{ display: 'flex', gap: '4px' }}>
+                                    {leftSeats.map(seat => (
+                                      <button
+                                        key={seat.label}
+                                        type="button"
+                                        onClick={() => {
+                                          if (seat.taken || !seat.selectable) return
+                                          update('seat_number', seat.label)
+                                        }}
+                                        disabled={seat.taken || !seat.selectable}
+                                        className={`custom-seat ${seat.class.toLowerCase()} ${seat.taken ? 'taken' : ''} ${form.seat_number === seat.label ? 'selected' : ''} ${seat.selectable ? 'selectable' : ''}`}
+                                        title={seat.taken ? `${seat.label} - Taken` : `${seat.label} - ${seat.class}`}
+                                        style={{
+                                          width: '36px',
+                                          height: '36px',
+                                          borderRadius: '4px',
+                                          border: `1px solid ${seat.taken ? '#666' : form.seat_number === seat.label ? 'var(--accent)' : '#88857c'}`,
+                                          background: seat.taken ? '#1a1a1a' : form.seat_number === seat.label ? '#ffe2ae' : 
+                                            seat.class === 'First' ? 'linear-gradient(90deg, #BDB76B, #D4AF37)' :
+                                            seat.class === 'Business' ? 'linear-gradient(90deg, #1a3a1a, #264226)' : '#e6e7e9',
+                                          color: seat.taken ? '#666' : '#000',
+                                          cursor: (seat.taken || !seat.selectable) ? 'not-allowed' : 'pointer',
+                                          opacity: seat.taken ? 0.5 : 1,
+                                          fontWeight: '600',
+                                          fontSize: '0.75rem',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          transition: 'all 0.2s ease',
+                                          boxShadow: form.seat_number === seat.label ? '0 0 8px rgba(231, 194, 98, 0.5)' : 'none'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          if (!seat.taken && seat.selectable) {
+                                            e.target.style.transform = 'translateY(-2px)'
+                                            e.target.style.boxShadow = '0 4px 12px rgba(231, 194, 98, 0.4)'
+                                          }
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          if (form.seat_number !== seat.label) {
+                                            e.target.style.transform = 'translateY(0)'
+                                            e.target.style.boxShadow = 'none'
+                                          }
+                                        }}
+                                      >
+                                        {seat.letter}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  
+                                  <div className="aisle" style={{ width: '20px', minWidth: '20px', flexShrink: 0 }}></div>
+                                  
+                                  <div className="seat-bank-right" style={{ display: 'flex', gap: '4px' }}>
+                                    {rightSeats.map(seat => (
+                                      <button
+                                        key={seat.label}
+                                        type="button"
+                                        onClick={() => {
+                                          if (seat.taken || !seat.selectable) return
+                                          update('seat_number', seat.label)
+                                        }}
+                                        disabled={seat.taken || !seat.selectable}
+                                        className={`custom-seat ${seat.class.toLowerCase()} ${seat.taken ? 'taken' : ''} ${form.seat_number === seat.label ? 'selected' : ''} ${seat.selectable ? 'selectable' : ''}`}
+                                        title={seat.taken ? `${seat.label} - Taken` : `${seat.label} - ${seat.class}`}
+                                        style={{
+                                          width: '36px',
+                                          height: '36px',
+                                          borderRadius: '4px',
+                                          border: `1px solid ${seat.taken ? '#666' : form.seat_number === seat.label ? 'var(--accent)' : '#88857c'}`,
+                                          background: seat.taken ? '#1a1a1a' : form.seat_number === seat.label ? '#ffe2ae' : 
+                                            seat.class === 'First' ? 'linear-gradient(90deg, #BDB76B, #D4AF37)' :
+                                            seat.class === 'Business' ? 'linear-gradient(90deg, #1a3a1a, #264226)' : '#e6e7e9',
+                                          color: seat.taken ? '#666' : '#000',
+                                          cursor: (seat.taken || !seat.selectable) ? 'not-allowed' : 'pointer',
+                                          opacity: seat.taken ? 0.5 : 1,
+                                          fontWeight: '600',
+                                          fontSize: '0.75rem',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          transition: 'all 0.2s ease',
+                                          boxShadow: form.seat_number === seat.label ? '0 0 8px rgba(231, 194, 98, 0.5)' : 'none'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          if (!seat.taken && seat.selectable) {
+                                            e.target.style.transform = 'translateY(-2px)'
+                                            e.target.style.boxShadow = '0 4px 12px rgba(231, 194, 98, 0.4)'
+                                          }
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          if (form.seat_number !== seat.label) {
+                                            e.target.style.transform = 'translateY(0)'
+                                            e.target.style.boxShadow = 'none'
+                                          }
+                                        }}
+                                      >
+                                        {seat.letter}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  </div>
+                                </div>
                               )
                             })}
+                            </div>
                           </div>
-                          <div className="seat-legend">
-                            <span className="legend-item"><span className="legend-dot first"></span> First</span>
-                            <span className="legend-item"><span className="legend-dot business"></span> Business</span>
-                            <span className="legend-item"><span className="legend-dot economy"></span> Economy</span>
-                            <span className="legend-item"><span className="legend-dot taken"></span> Taken</span>
+                          <div style={{marginTop: '12px', fontSize: '0.85rem', color: 'var(--muted)'}}>
+                            Selected seat: <strong style={{color: 'var(--accent)'}}>{form.seat_number || 'None'}</strong>
                           </div>
+                        </div>
+                      ) : selected && selected.plane_type ? (
+                        <div style={{padding: '20px', textAlign: 'center', color: 'var(--muted)'}}>
+                          Preparing seat map...
+                        </div>
+                      ) : (
+                        <div style={{padding: '20px', textAlign: 'center', color: 'var(--muted)'}}>
+                          Please select a flight to view seat map
                         </div>
                       )}
                     </label>

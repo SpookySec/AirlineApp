@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Link, NavLink } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, NavLink, Navigate } from 'react-router-dom'
 
 import TicketsPage from './pages/TicketsPage'
 import './styles.css'
@@ -10,6 +10,9 @@ import Home from './pages/Home.jsx'
 import Register from './pages/Register.jsx'
 import Login from './pages/Login.jsx'
 import Book from './pages/Book.jsx'
+import FlightsPage from './pages/FlightsPage'
+import StaffDashboard from './pages/StaffDashboard.jsx'
+import RostersPage from './pages/RostersPageEnhanced.jsx'
 
 function App(){
   const [authUser, setAuthUser] = useState(localStorage.getItem('username') || null)
@@ -24,7 +27,12 @@ function App(){
     }
   }, [])
 
-  const isLoggedIn = !!authUser
+  const isLoggedIn = !!authUser && !!localStorage.getItem('access_token')
+
+  const Protected = ({ element }) => {
+    if (!isLoggedIn) return <Navigate to="/login" replace />
+    return element
+  }
 
   function handleLogout(){
     localStorage.removeItem('access_token')
@@ -38,8 +46,11 @@ function App(){
       <nav className="topnav">
         <div className="nav-center">
           <NavLink to="/" className={({isActive})=> isActive ? 'active nav-item' : 'nav-item'}>Home</NavLink>
-          <NavLink to="/book" className={({isActive})=> isActive ? 'active nav-item' : 'nav-item'}>Book</NavLink>
+          {isLoggedIn && <NavLink to="/book" className={({isActive})=> isActive ? 'active nav-item' : 'nav-item'}>Book</NavLink>}
+          <NavLink to="/flights" className={({isActive})=> isActive ? 'active nav-item' : 'nav-item'}>Flights</NavLink>
+          {isLoggedIn && <NavLink to="/rosters" className={({isActive})=> isActive ? 'active nav-item' : 'nav-item'}>Rosters</NavLink>}
           {isLoggedIn && <NavLink to="/tickets" className={({isActive})=> isActive ? 'active nav-item' : 'nav-item'}>Tickets</NavLink>}
+          {isLoggedIn && <NavLink to="/staff" className={({isActive})=> isActive ? 'active nav-item' : 'nav-item'}>Staff</NavLink>}
           
         </div>
 
@@ -59,11 +70,14 @@ function App(){
       </nav>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/tickets" element={<TicketsPage />} />
+        <Route path="/tickets" element={<Protected element={<TicketsPage />} />} />
+        <Route path="/flights" element={<FlightsPage />} />
+        <Route path="/rosters" element={<Protected element={<RostersPage />} />} />
+        <Route path="/staff" element={<Protected element={<StaffDashboard />} />} />
         
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/book" element={<Book />} />
+        <Route path="/book" element={<Protected element={<Book />} />} />
         
       </Routes>
     </BrowserRouter>
